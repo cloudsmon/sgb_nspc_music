@@ -1,5 +1,7 @@
 # SGB SOU_TRN example
 
+![](sgb_mus.png)
+
 This code demonstrates howto play custom SNES music using the built in N-SPC driver of the SGB.
 It transfers song data to the SGB using the 'SOU_TRN' command.
 Additionally as a gimmick it has basic functionality to change the instruments that the song uses (however, no samples are changed).
