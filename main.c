@@ -5,10 +5,13 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <gbdk/console.h>
+#include <gbdk/font.h>
 
 #include "sgb_snd_sfx.h"
 #include "sgb_sfx_names.h"
+#include "sgb_music.h"
 
+#include "nspc_song_data.h"
 
 // Stores button presses
 uint8_t keys = 0x00, keys_last = 0x00;
@@ -22,10 +25,12 @@ uint8_t sgb_sfx_b_vol   = SGB_SND_VOL_HI;   // Bits 6..7
 
 
 // Default values for SFX types
-uint8_t sfx_num_a = SGB_SND_EFFECT_A_MIN;
-uint8_t sfx_num_b = SGB_SND_EFFECT_B_MIN;
+uint8_t sgb_num_a = 0;
+uint8_t sgb_num_b = SGB_SND_EFFECT_B_MIN;
+uint8_t instr_opcode_idx = 0;
+uint8_t sgb_music_paused = 0;
 
-static uint8_t sgb_buf[20]; // Should be sized to fit max payload bytes + 1 for command byte
+extern uint8_t sgb_buf[20]; // Should be sized to fit max payload bytes + 1 for command byte
 
 
 // Play a SGB sound effect
@@ -42,43 +47,62 @@ void sgb_sound_effect(uint8_t sfx_a, uint8_t sfx_b) {
 }
 
 
+
+
 #define DISP_SFX_A_START 3
 #define DISP_SFX_B_START 10
 
 // Display basic operation info on the screen
 void init_display(void) {
     gotoxy(0,1);
-    printf("SGB BUILT-IN SFX");
+    printf("SGB SOU_TRN DEMO");
 
     gotoxy(0,DISP_SFX_A_START);
-    printf("SFX A:\n");
-    printf(" PLAY: A\n");
-    printf(" STOP: SELECT + A\n");
+    printf("INSTR:\n");
     printf(" TYPE: UP / DOWN\n");
+    printf(" OPcode addr:\n");
+    printf(" NEXT: SELECT\n");
+    printf(" SOU_TRN: START\n");
 
     gotoxy(0,DISP_SFX_B_START);
-    printf("SFX B:\n");
-    printf(" PLAY: B\n");
-    printf(" STOP: SELECT + B\n");
+    printf("SONG NR:\n");
     printf(" TYPE: LEFT / RIGHT\n");
+    printf(" PLAY: A\n");
+    printf(" STOP: B\n");
 }
 
 
 // Update the display if either of the sfx types have changed
 void update_display(void) {
 
-    gotoxy(7u, DISP_SFX_A_START);
-    printf("0x%hx", (uint8_t)sfx_num_a);
-    gotoxy(1u, DISP_SFX_A_START + 4u);
-    printf("%s", (const char *)sgb_sfx_names_table_a[sfx_num_a]);
+    gotoxy(8u, DISP_SFX_A_START);
+    printf("0x%hx", (uint8_t)sgb_num_a);
+    gotoxy(13u, DISP_SFX_A_START + 2u);
+    printf("0x%x", (uint16_t)nspc_instr_addr[instr_opcode_idx]);
+    gotoxy(1u, DISP_SFX_A_START + 5u);
+    printf("                    ");
+    gotoxy(1u, DISP_SFX_A_START + 5u);
+    printf("%s", (const char *)sgb_sfx_names_table_a[sgb_num_a]);
 
 
-    gotoxy(7u, DISP_SFX_B_START);
-    printf("0x%hx", (uint8_t)sfx_num_b);
+    gotoxy(8u, DISP_SFX_B_START);
+    printf("0x%hx", (uint8_t)sgb_num_b);
     gotoxy(1u, DISP_SFX_B_START + 4u);
-    printf("%s", (const char *)sgb_sfx_names_table_b[sfx_num_b]);
+    printf("                    ");
+    gotoxy(1u, DISP_SFX_B_START + 4u);
+    printf("%s", (const char *)sgb_sfx_names_table_b[(sgb_num_b-1) > 2? 2 : (sgb_num_b-1)]);
 }
 
+void sgb_update_instr(void) { // overwrite instrument and tuning at pregenerated address
+    sgb_music_play(0xF0);
+    uint8_t tmp[2];
+    tmp[0] = sgb_num_a; // instr nr
+    tmp[1] = tune_table[sgb_num_a];
+    sgb_music_transfer(tmp, 2, nspc_instr_addr[instr_opcode_idx]);
+    font_init();
+    init_display();
+    update_display();
+}
 
 // Process button presses
 void handle_input(void) {
@@ -87,53 +111,60 @@ void handle_input(void) {
 
     // Filter so only buttons newly pressed have their bits set
     switch ((keys ^ keys_last) & keys) {
-
-        // Effect "A" playback controls
-        case J_A: if (keys & J_SELECT) {
-                      // Stop the effect
-                      sgb_sound_effect(SGB_SND_EFFECT_STOP, SGB_SND_EFFECT_EMPTY);
-                  } else {
-                      // Start the effect
-                      sgb_sound_effect(sfx_num_a, SGB_SND_EFFECT_EMPTY);
-                  }
-                  break;
+        case J_A:
+                sgb_music_play(sgb_num_b);
+                break;
 
         // Effect "B" playback controls
-        case J_B: if (keys & J_SELECT) {
-                      // Stop the effect
-                      sgb_sound_effect(SGB_SND_EFFECT_EMPTY, SGB_SND_EFFECT_STOP);
-                  } else {
-                      // Start the effect
-                      sgb_sound_effect(SGB_SND_EFFECT_EMPTY, sfx_num_b);
-                  }
-                  break;
+        case J_B:
+                if (!sgb_music_paused) {
+                    if (keys & J_A) {
+                        sgb_music_play(SGB_SPC_MUS_STOP); // hard-reset?
+                    } else {
+                        sgb_music_play(SGB_SPC_MUS_PAUSE);
+                    }
+                    sgb_music_paused = true;
+                } else {
+                    // TODO does not work?
+                    //sgb_music_play(SGB_SPC_MUS_RESUME);
+                    sgb_music_paused = false;
+                }
+                break;
 
 
         // Effect type selectors
-        case (J_UP): sfx_num_a++;
-                  if (sfx_num_a > SGB_SND_EFFECT_A_MAX) sfx_num_a = SGB_SND_EFFECT_A_MIN;
+        case (J_UP): sgb_num_a++;
+                  if (sgb_num_a >= SGB_NUM_INSTR) sgb_num_a = 0;
                   display_update_queued = true;
                   break;
 
-        case (J_DOWN): sfx_num_a--;
-                 if (sfx_num_a < SGB_SND_EFFECT_A_MIN) sfx_num_a = SGB_SND_EFFECT_A_MAX;
+        case (J_DOWN): sgb_num_a--;
+                 if (sgb_num_a == 0xFF) sgb_num_a = SGB_NUM_INSTR - 1;
                   display_update_queued = true;
                  break;
 
-        case (J_RIGHT): sfx_num_b++;
-                  if (sfx_num_b > SGB_SND_EFFECT_B_MAX) sfx_num_b = SGB_SND_EFFECT_B_MIN;
+        case (J_RIGHT): sgb_num_b++;
+                  if (sgb_num_b > SGB_SND_MUS_MAX) sgb_num_b = SGB_SND_MUS_MIN;
                   display_update_queued = true;
                   break;
 
-        case (J_LEFT): sfx_num_b--;
-                  if (sfx_num_b < SGB_SND_EFFECT_B_MIN) sfx_num_b = SGB_SND_EFFECT_B_MAX;
+        case (J_LEFT): sgb_num_b--;
+                  if (sgb_num_b < SGB_SND_MUS_MIN) sgb_num_b = SGB_SND_MUS_MAX;
                   display_update_queued = true;
                   break;
+        case (J_SELECT): instr_opcode_idx++;
+                if (instr_opcode_idx >= NSPC_FOUND_INSTR_OPCODES) instr_opcode_idx = 0;
+                display_update_queued = true;
+            break;
+        case (J_START):
+                sgb_update_instr();
+            break;
     }
 
     if (display_update_queued)
         update_display();
 }
+
 
 
 void main(void) {
@@ -145,7 +176,7 @@ void main(void) {
     DISPLAY_ON;
 
     if (sgb_check()) {
-
+        sgb_music_transfer(nspc_song_data, sizeof(nspc_song_data), SGB_SPC_START_ADDR);
         init_display();
         update_display();
 
@@ -158,7 +189,8 @@ void main(void) {
             handle_input();
        }
     } else {
-        printf("NO SGB DETECTED");
+        printf("NO SGB DETECTED.\nThis program plays\nSNES audio via\nSGB.\nIt needs real HW\n"
+               "or an emulator that\ncan do SOU_TRN");
     }
 
 }
