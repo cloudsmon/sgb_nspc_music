@@ -6,7 +6,9 @@ Additionally as a gimmick it has basic functionality to change the instruments t
 
 It was tested on a PAL SGB.
 
-This code is based on gbdk sgb_sfx and sgb_border code.
+This code is based on [gbdk](https://github.com/gbdk-2020/gbdk-2020) sgb_sfx and sgb_border code.
+
+[Download ROM](https://github.com/cloudsmon/sgb_nspc_music/releases/download/v1.0.0/sgb_mus.gb) (or go to Releases)
 
 ## Build instructions
 
