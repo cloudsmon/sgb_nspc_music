@@ -1,4 +1,4 @@
-const char * sgb_sfx_names_table_a[] = {
+const char * sgb_instr_names_table[] = {
         "Sine 0",
         "Sine 1",
         "Sine 2",
@@ -63,7 +63,7 @@ const char * sgb_sfx_names_table_a[] = {
         "SFX Water",
         "SFX Wind",};
 
-const char * sgb_sfx_names_table_b[] = {
+const char * sgb_song_names_table[] = {
     "bgm1: Simple Blues",
     "bgm2: note len test",
     "Unused"};

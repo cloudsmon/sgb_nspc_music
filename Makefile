@@ -1,7 +1,7 @@
 CC	= ${GBDKDIR}bin/lcc
 
 all: nspc_song_data.h
-	$(CC)  -Wm-ys -o sgb_mus.gb main.c sgb_sfx_names.c sgb_music.c
+	$(CC)  -Wm-ys -o sgb_mus.gb main.c sgb_name_tables.c sgb_music.c
 
 # workaround/hack: use sdasgb to compile music data (GB and SPC are both little endian)
 # then use a python script to extract the relevant data into a uint8_t C array.
@@ -15,4 +15,4 @@ compile.bat: Makefile
 	@make -sn | sed y/\\//\\\\/ | sed s/mkdir\ -p\/mkdir\/ | grep -v make >> compile.bat
 
 clean:
-	rm -f *.o *.lst *.gb *.ihx *.sym *.cdb *.adb *.asm
+	rm -f *.o *.lst *.gb *.ihx *.sym *.cdb *.adb *.asm nspc_song_data.h

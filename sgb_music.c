@@ -12,7 +12,6 @@
 
 uint8_t sgb_buf[20]; // theoretically only 16 bytes needed for SGB commands; but this memory is also used to prepare SGB VRAM transfers
 
-//const uint8_t sgb_mus_table_start[] = {0x00, 0x2B};
 const uint8_t sgb_mus_transfer_end[] = {0x00, 0x00, 0x00, 0x04}; // dw $0000, $0400 ; jumps to start of N-SPC driver
 const uint8_t tune_table[] = { // tuning of 0 crashes the SPC :/
         1, 1, 1, 1, 1, 1, 1, 1,
@@ -25,7 +24,6 @@ const uint8_t tune_table[] = { // tuning of 0 crashes the SPC :/
         1, 1, 1, 1, 1, 10, 1, 1,
         1, 1, 1, 1, 1, 1
 };
-//inline void sgb_prepare_vram_tranfer()
 
 void sgb_music_transfer(const uint8_t *data, uint16_t len, uint16_t spc_dest_addr) {
     // prepare data for VRAM transfer

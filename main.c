@@ -8,7 +8,7 @@
 #include <gbdk/font.h>
 
 #include "sgb_snd_sfx.h"
-#include "sgb_sfx_names.h"
+#include "sgb_name_tables.h"
 #include "sgb_music.h"
 
 #include "nspc_song_data.h"
@@ -24,9 +24,9 @@ uint8_t sgb_sfx_b_pitch = SGB_SND_PITCH_HI; // Bits 4..5
 uint8_t sgb_sfx_b_vol   = SGB_SND_VOL_HI;   // Bits 6..7
 
 
-// Default values for SFX types
-uint8_t sgb_num_a = 0;
-uint8_t sgb_num_b = SGB_SND_EFFECT_B_MIN;
+// Default values for user values
+uint8_t sgb_instr_sel = 0;
+uint8_t sgb_song_nr = SGB_SND_MUS_MIN;
 uint8_t instr_opcode_idx = 0;
 uint8_t sgb_music_paused = 0;
 
@@ -49,22 +49,22 @@ void sgb_sound_effect(uint8_t sfx_a, uint8_t sfx_b) {
 
 
 
-#define DISP_SFX_A_START 3
-#define DISP_SFX_B_START 10
+#define DISP_START1 3
+#define DISP_START2 10
 
 // Display basic operation info on the screen
 void init_display(void) {
     gotoxy(0,1);
     printf("SGB SOU_TRN DEMO");
 
-    gotoxy(0,DISP_SFX_A_START);
+    gotoxy(0, DISP_START1);
     printf("INSTR:\n");
     printf(" TYPE: UP / DOWN\n");
     printf(" OPcode addr:\n");
     printf(" NEXT: SELECT\n");
     printf(" SOU_TRN: START\n");
 
-    gotoxy(0,DISP_SFX_B_START);
+    gotoxy(0, DISP_START2);
     printf("SONG NR:\n");
     printf(" TYPE: LEFT / RIGHT\n");
     printf(" PLAY: A\n");
@@ -75,29 +75,29 @@ void init_display(void) {
 // Update the display if either of the sfx types have changed
 void update_display(void) {
 
-    gotoxy(8u, DISP_SFX_A_START);
-    printf("0x%hx", (uint8_t)sgb_num_a);
-    gotoxy(13u, DISP_SFX_A_START + 2u);
+    gotoxy(8u, DISP_START1);
+    printf("0x%hx", (uint8_t)sgb_instr_sel);
+    gotoxy(13u, DISP_START1 + 2u);
     printf("0x%x", (uint16_t)nspc_instr_addr[instr_opcode_idx]);
-    gotoxy(1u, DISP_SFX_A_START + 5u);
+    gotoxy(1u, DISP_START1 + 5u);
     printf("                    ");
-    gotoxy(1u, DISP_SFX_A_START + 5u);
-    printf("%s", (const char *)sgb_sfx_names_table_a[sgb_num_a]);
+    gotoxy(1u, DISP_START1 + 5u);
+    printf("%s", (const char *)sgb_instr_names_table[sgb_instr_sel]);
 
 
-    gotoxy(8u, DISP_SFX_B_START);
-    printf("0x%hx", (uint8_t)sgb_num_b);
-    gotoxy(1u, DISP_SFX_B_START + 4u);
+    gotoxy(8u, DISP_START2);
+    printf("0x%hx", (uint8_t)sgb_song_nr);
+    gotoxy(1u, DISP_START2 + 4u);
     printf("                    ");
-    gotoxy(1u, DISP_SFX_B_START + 4u);
-    printf("%s", (const char *)sgb_sfx_names_table_b[(sgb_num_b-1) > 2? 2 : (sgb_num_b-1)]);
+    gotoxy(1u, DISP_START2 + 4u);
+    printf("%s", (const char *)sgb_song_names_table[(sgb_song_nr - 1) > 2 ? 2 : (sgb_song_nr - 1)]);
 }
 
 void sgb_update_instr(void) { // overwrite instrument and tuning at pregenerated address
-    sgb_music_play(0xF0);
+    sgb_music_play(SGB_SPC_MUS_PAUSE);
     uint8_t tmp[2];
-    tmp[0] = sgb_num_a; // instr nr
-    tmp[1] = tune_table[sgb_num_a];
+    tmp[0] = sgb_instr_sel; // instr nr
+    tmp[1] = tune_table[sgb_instr_sel];
     sgb_music_transfer(tmp, 2, nspc_instr_addr[instr_opcode_idx]);
     font_init();
     init_display();
@@ -112,10 +112,8 @@ void handle_input(void) {
     // Filter so only buttons newly pressed have their bits set
     switch ((keys ^ keys_last) & keys) {
         case J_A:
-                sgb_music_play(sgb_num_b);
+                sgb_music_play(sgb_song_nr);
                 break;
-
-        // Effect "B" playback controls
         case J_B:
                 if (!sgb_music_paused) {
                     if (keys & J_A) {
@@ -132,24 +130,24 @@ void handle_input(void) {
                 break;
 
 
-        // Effect type selectors
-        case (J_UP): sgb_num_a++;
-                  if (sgb_num_a >= SGB_NUM_INSTR) sgb_num_a = 0;
+        // type selectors
+        case (J_UP): sgb_instr_sel++;
+                  if (sgb_instr_sel >= SGB_NUM_INSTR) sgb_instr_sel = 0;
                   display_update_queued = true;
                   break;
 
-        case (J_DOWN): sgb_num_a--;
-                 if (sgb_num_a == 0xFF) sgb_num_a = SGB_NUM_INSTR - 1;
+        case (J_DOWN): sgb_instr_sel--;
+                 if (sgb_instr_sel == 0xFF) sgb_instr_sel = SGB_NUM_INSTR - 1;
                   display_update_queued = true;
                  break;
 
-        case (J_RIGHT): sgb_num_b++;
-                  if (sgb_num_b > SGB_SND_MUS_MAX) sgb_num_b = SGB_SND_MUS_MIN;
+        case (J_RIGHT): sgb_song_nr++;
+                  if (sgb_song_nr > SGB_SND_MUS_MAX) sgb_song_nr = SGB_SND_MUS_MIN;
                   display_update_queued = true;
                   break;
 
-        case (J_LEFT): sgb_num_b--;
-                  if (sgb_num_b < SGB_SND_MUS_MIN) sgb_num_b = SGB_SND_MUS_MAX;
+        case (J_LEFT): sgb_song_nr--;
+                  if (sgb_song_nr < SGB_SND_MUS_MIN) sgb_song_nr = SGB_SND_MUS_MAX;
                   display_update_queued = true;
                   break;
         case (J_SELECT): instr_opcode_idx++;
